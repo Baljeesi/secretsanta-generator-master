@@ -1,6 +1,8 @@
 import subprocess
 import sys
 import os
+import csv
+from datetime import datetime
 
 def run_cmd(cmd):
     """Run a shell command safely and return its output."""
@@ -39,6 +41,21 @@ def get_changed_files(commit_id):
     files_output = run_cmd(f"git show --name-only --pretty=format: {commit_id}")
     return [f for f in files_output.splitlines() if f.strip()]
 
+def save_to_csv(commit_file_map):
+    """Save changed file info into CSV report."""
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    filename = f"git_changes_report_{timestamp}.csv"
+
+    with open(filename, mode="w", newline="", encoding="utf-8") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(["Commit ID", "Changed File"])
+        for commit, files in commit_file_map.items():
+            for f in files:
+                writer.writerow([commit, f])
+
+    print(f"\n📄 Report generated successfully: {filename}")
+    print("💾 You can attach this file in CI/CD or email for audit logs.\n")
+
 def main():
     ensure_repo()
     update_main_branch()
@@ -48,17 +65,21 @@ def main():
         print("⚠️ No commits found in main branch.")
         return
 
+    commit_file_map = {}
+
     print("🔍 Listing files changed in each commit (including merges):\n")
     for commit in commits:
         print(f"\n📦 Commit: {commit}")
         files = get_changed_files(commit)
+        commit_file_map[commit] = files
         if files:
             for file in files:
                 print(f"  • {file}")
         else:
             print("  (No file changes in this commit)")
 
-    print("\n✅ Completed — all changed files in main branch have been listed.")
+    save_to_csv(commit_file_map)
+    print("✅ Completed — all changed files saved in report.\n")
 
 if __name__ == "__main__":
     main()
